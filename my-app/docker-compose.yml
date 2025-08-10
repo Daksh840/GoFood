@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - gofood-network
+
+  # Future backend service
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "3001:3001"
+  #   environment:
+  #     - NODE_ENV=production
+  #     - DATABASE_URL=postgresql://user:password@db:5432/gofood
+  #   depends_on:
+  #     - db
+  #   restart: unless-stopped
+  #   networks:
+  #     - gofood-network
+
+  # Future database service
+  # db:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     - POSTGRES_DB=gofood
+  #     - POSTGRES_USER=user
+  #     - POSTGRES_PASSWORD=password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+  #   networks:
+  #     - gofood-network
+
+  # Redis for caching (future)
+  # redis:
+  #   image: redis:7-alpine
+  #   restart: unless-stopped
+  #   networks:
+  #     - gofood-network
+
+networks:
+  gofood-network:
+    driver: bridge
+
+# volumes:
+#   postgres_data:

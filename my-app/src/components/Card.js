@@ -1,122 +1,41 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useAppContext } from '../context/AppContext';
 import { toast } from 'react-toastify';
+import { foodItems } from '../data/foodItems';
+import { format } from '../utils';
+import { ANIMATION_VARIANTS } from '../constants';
+import { SkeletonLoader } from './common/LoadingSpinner';
+import { useInView } from 'react-intersection-observer';
+import debounce from 'lodash.debounce';
+import FilterPanel from './common/FilterPanel';
 
-export default function Card() {
+export default function Card({ showFilters = true, itemsPerPage = 12 }) {
   const { addToCart, searchTerm, filterCategory } = useAppContext();
   const [quantities, setQuantities] = useState({});
   const [sizes, setSizes] = useState({});
-  
-  const foodItems = [
-    {
-      id: 1,
-      name: "Margherita Pizza",
-      description: "Fresh tomatoes, mozzarella cheese, basil leaves",
-      image: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?w=500&h=300&fit=crop&crop=center&auto=format&q=60",
-      rating: 4.5,
-      price: { half: 12.99, full: 18.99 },
-      category: "Pizza"
-    },
-    {
-      id: 2,
-      name: "Chicken Burger",
-      description: "Grilled chicken breast with lettuce, tomato, mayo",
-      image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&h=300&fit=crop&crop=center&auto=format&q=60",
-      rating: 4.7,
-      price: { half: 8.99, full: 14.99 },
-      category: "Burger"
-    },
-    {
-      id: 3,
-      name: "Caesar Salad",
-      description: "Crisp romaine lettuce, parmesan, croutons, caesar dressing",
-      image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&h=300&fit=crop&crop=center&auto=format&q=60",
-      rating: 4.3,
-      price: { half: 6.99, full: 11.99 },
-      category: "Salad"
-    },
-    {
-      id: 4,
-      name: "Chicken Biryani",
-      description: "Aromatic basmati rice with tender chicken and spices",
-      image: "https://images.unsplash.com/photo-1563379091339-03246963d25c?w=500&h=300&fit=crop&crop=center&auto=format&q=60",
-      rating: 4.8,
-      price: { half: 9.99, full: 16.99 },
-      category: "Indian"
-    },
-    {
-      id: 5,
-      name: "Chocolate Cake",
-      description: "Rich chocolate cake with creamy chocolate frosting",
-      image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&h=300&fit=crop&crop=center&auto=format&q=60",
-      rating: 4.9,
-      price: { half: 4.99, full: 8.99 },
-      category: "Dessert"
-    },
-    {
-      id: 6,
-      name: "Fish Tacos",
-      description: "Grilled fish with fresh salsa and avocado cream",
-      image: "https://images.unsplash.com/photo-1565299585323-38174c4a6233?w=500&h=300&fit=crop&crop=center&auto=format&q=60",
-      rating: 4.4,
-      price: { half: 7.99, full: 13.99 },
-      category: "Mexican"
-    },
-    {
-      id: 7,
-      name: "Pepperoni Pizza",
-      description: "Classic pepperoni with mozzarella cheese and tomato sauce",
-      image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&h=300&fit=crop&crop=center&auto=format&q=60",
-      rating: 4.6,
-      price: { half: 14.99, full: 22.99 },
-      category: "Pizza"
-    },
-    {
-      id: 8,
-      name: "Beef Burger",
-      description: "Juicy beef patty with cheese, lettuce, tomato, and special sauce",
-      image: "https://images.unsplash.com/photo-1553979459-d2229ba7433a?w=500&h=300&fit=crop&crop=center&auto=format&q=60",
-      rating: 4.5,
-      price: { half: 9.99, full: 16.99 },
-      category: "Burger"
-    },
-    {
-      id: 9,
-      name: "Greek Salad",
-      description: "Fresh vegetables with feta cheese, olives, and olive oil dressing",
-      image: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=500&h=300&fit=crop&crop=center&auto=format&q=60",
-      rating: 4.2,
-      price: { half: 7.99, full: 12.99 },
-      category: "Salad"
-    },
-    {
-      id: 10,
-      name: "Butter Chicken",
-      description: "Creamy tomato-based curry with tender chicken pieces",
-      image: "https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=500&h=300&fit=crop&crop=center&auto=format&q=60",
-      rating: 4.7,
-      price: { half: 11.99, full: 18.99 },
-      category: "Indian"
-    },
-    {
-      id: 11,
-      name: "Tiramisu",
-      description: "Classic Italian dessert with coffee-soaked ladyfingers and mascarpone",
-      image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=500&h=300&fit=crop&crop=center&auto=format&q=60",
-      rating: 4.8,
-      price: { half: 5.99, full: 9.99 },
-      category: "Dessert"
-    },
-    {
-      id: 12,
-      name: "Chicken Quesadilla",
-      description: "Grilled tortilla filled with chicken, cheese, and peppers",
-      image: "https://images.unsplash.com/photo-1599974042762-64d2b8cfb4d1?w=500&h=300&fit=crop&crop=center&auto=format&q=60",
-      rating: 4.3,
-      price: { half: 8.99, full: 14.99 },
-      category: "Mexican"
-    }
-  ];
+  const [filters, setFilters] = useState({
+    category: 'all',
+    minPrice: 0,
+    maxPrice: 50,
+    minRating: 0,
+    dietary: [],
+    maxPrepTime: 60,
+    spiciness: 0,
+  });
+  const [sortBy, setSortBy] = useState('popular');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [imageLoadErrors, setImageLoadErrors] = useState({});
+
+  // Debounced search to improve performance
+  const debouncedSearch = useMemo(
+    () => debounce((term) => {
+      setCurrentPage(1); // Reset to first page on search
+    }, 300),
+    []
+  );
 
   const getQuantity = (itemId) => quantities[itemId] || 1;
   const getSize = (itemId) => sizes[itemId] || 'full';
